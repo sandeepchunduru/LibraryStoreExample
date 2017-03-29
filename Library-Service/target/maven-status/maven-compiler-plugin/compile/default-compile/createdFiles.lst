@@ -1,0 +1,5 @@
+com\chunduru\intellij\StartupApp.class
+com\chunduru\intellij\dao\LibraryDao.class
+com\chunduru\intellij\config\AppConfiguration.class
+com\chunduru\intellij\controller\LibraryController.class
+com\chunduru\intellij\dao\impl\LibraryDaoImpl.class
