@@ -24,7 +24,7 @@ public class LibraryController
     {
         Book book = new Book();
         book.setBookId(bookId);
-        book.setBookTitle("Spring Rest API");
+        book.setBookTitle("Spring JDBC Templates");
         book.setAuthorFirstName("Shashank");
         book.setAuthorLastName("Sagar");
         book.setBookRating(9);
@@ -34,7 +34,7 @@ public class LibraryController
     @RequestMapping(value= "/updateBookTitle/{bookId}")
     public void updateBookTitle(@PathVariable final String bookId)
     {
-        String bookTitle = "Updated BookTitle";
+        String bookTitle = "Spring JDBC Templates";
         libraryDao.updateBookTitle(bookId, bookTitle);
     }
 

@@ -1,0 +1,155 @@
+-- Clean up from any previous tutorial actions.
+DROP TABLE TRANSACTIONS;
+DROP TABLE BOOKS;
+DROP TABLE PATRONS;
+DROP SEQUENCE PATRON_ID_SEQ;
+DROP SEQUENCE TRANSACTIONS_SEQ;
+DROP TRIGGER TRANSACTIONS_TRIGGER;
+DROP VIEW PATRONS_TRANS_VIEW;
+DROP PROCEDURE LIST_A_RATING;
+DROP PROCEDURE LIST_A_RATING_2;
+ 
+set serveroutput on
+ 
+-- Create objects.
+ 
+CREATE TABLE BOOKS (
+   book_id VARCHAR2(20),
+   title VARCHAR2(50)
+      CONSTRAINT title_not_null NOT NULL,
+   author_last_name VARCHAR2(30)
+      CONSTRAINT last_name_not_null NOT NULL,
+   author_first_name VARCHAR2(30),
+   rating NUMBER,
+   CONSTRAINT books_pk PRIMARY KEY (book_id),
+   CONSTRAINT rating_1_to_10 CHECK (rating IS NULL OR
+      (rating >= 1 and rating <= 10)),
+   CONSTRAINT author_title_unique UNIQUE (author_last_name, title));
+ 
+CREATE TABLE PATRONS (
+   patron_id NUMBER,
+   last_name VARCHAR2(30)
+      CONSTRAINT patron_last_not_null NOT NULL,
+   first_name VARCHAR2(30),
+   street_address VARCHAR2(50),
+   city_state_zip VARCHAR2(50),
+   location MDSYS.SDO_GEOMETRY,
+   CONSTRAINT patrons_pk PRIMARY KEY (patron_id));
+ 
+CREATE TABLE TRANSACTIONS (
+   transaction_id NUMBER,
+   patron_id CONSTRAINT for_key_patron_id
+      REFERENCES PATRONS(patron_id),
+   book_id CONSTRAINT for_key_book_id
+      REFERENCES BOOKS(book_id),
+   transaction_date DATE
+      CONSTRAINT tran_date_not_null NOT NULL,
+   transaction_type NUMBER
+      CONSTRAINT tran_type_not_null NOT NULL,
+   CONSTRAINT transactions_pk PRIMARY KEY (transaction_id));
+ 
+CREATE SEQUENCE PATRON_ID_SEQ 
+   START WITH 100
+   INCREMENT BY 1;
+ 
+-- The sequence for the transaction_id 
+-- in the tutorial is created automatically,
+-- and may have the name TRANSACTIONS_SEQ.
+CREATE SEQUENCE TRANSACTIONS_SEQ 
+   START WITH 1
+   INCREMENT BY 1;
+ 
+-- The before-insert trigger for transaction ID values
+-- in the tutorial is created automatically,
+-- and may have the name TRANSACTIONS_TRG.
+CREATE OR REPLACE TRIGGER TRANSACTIONS_TRIGGER
+   BEFORE INSERT ON TRANSACTIONS 
+  FOR EACH ROW 
+  BEGIN
+    SELECT TRANSACTIONS_SEQ.NEXTVAL INTO :NEW.TRANSACTION_ID FROM DUAL;
+  END;
+/
+ 
+CREATE VIEW PATRONS_TRANS_VIEW AS
+  SELECT p.patron_id,
+         p.last_name,
+         p.first_name,
+         t.transaction_type,
+         t.transaction_date
+    FROM PATRONS p, TRANSACTIONS t
+   WHERE p.patron_id = t.patron_id
+   ORDER BY p.patron_id, t.transaction_type;
+ 
+-- Procedure: List all BOOKS that have a specified rating.
+CREATE OR REPLACE PROCEDURE LIST_A_RATING(in_rating IN NUMBER) AS
+  matching_title VARCHAR2(50);
+  TYPE my_cursor IS REF CURSOR;
+  the_cursor my_cursor;
+BEGIN
+  OPEN the_cursor
+    FOR 'SELECT title 
+           FROM BOOKS 
+          WHERE rating = :in_rating'
+    USING in_rating;
+  DBMS_OUTPUT.PUT_LINE('All BOOKS with a rating of ' || in_rating || ':');
+  LOOP
+    FETCH the_cursor INTO matching_title;
+    EXIT WHEN the_cursor%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE(matching_title);
+  END LOOP;
+  CLOSE the_cursor;
+END;
+/
+show errors;
+ 
+-- Insert and query data.
+ 
+INSERT INTO BOOKS VALUES ('A1111', 'Moby Dick', 'Melville', 'Herman', 10);
+INSERT INTO BOOKS VALUES ('A2222', 'Get Rich Really Fast', 'Scammer', 'Ima', 1);
+INSERT INTO BOOKS VALUES ('A3333', 'Finding Inner Peace', 'Blissford', 'Serenity', null);
+INSERT INTO BOOKS VALUES ('A4444', 'Great Mystery Stories', 'Whodunit', 'Rodney', 5);
+INSERT INTO BOOKS VALUES ('A5555', 'Software Wizardry', 'Abugov', 'D.', 10);
+ 
+INSERT INTO PATRONS VALUES  (PATRON_ID_SEQ.nextval, 
+   'Smith', 'Jane', '123 Main Street', 'Mytown, MA 01234', null);
+INSERT INTO PATRONS VALUES  (PATRON_ID_SEQ.nextval, 
+   'Chen', 'William', '16 S. Maple Road', 'Mytown, MA 01234', null);
+INSERT INTO PATRONS VALUES  (PATRON_ID_SEQ.nextval, 
+   'Fernandez', 'Maria', '502 Harrison Blvd.', 'Sometown, NH 03078', null);
+INSERT INTO PATRONS VALUES  (PATRON_ID_SEQ.nextval, 
+   'Murphy', 'Sam', '57 Main Street', 'Mytown, MA 01234', null);
+ 
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (100, 'A1111', SYSDATE, 1);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (100, 'A2222', SYSDATE, 2);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (101, 'A3333', SYSDATE, 3);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (101, 'A2222', SYSDATE, 1);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (102, 'A3333', SYSDATE, 1);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (103, 'A4444', SYSDATE, 2);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (100, 'A4444', SYSDATE, 1);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (102, 'A2222', SYSDATE, 2);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (102, 'A5555', SYSDATE, 1);
+INSERT INTO TRANSACTIONS (patron_id, book_id, 
+  transaction_date, transaction_type) 
+  VALUES (101, 'A2222', SYSDATE, 1);
+ 
+-- Test the view and the procedure.
+SELECT * FROM PATRONS_TRANS_VIEW;
+CALL LIST_A_RATING(10);
